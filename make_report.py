@@ -18,19 +18,24 @@ PRETTY_NAMES = {
     "window_h5": "window, horizon=5",
     "window_h10": "window, horizon=10",
     "sentence": "sentence (whole-sentence co-occurrence)",
+    "front80_window_h5": "window h5, chapters 1-80",
+    "back40_window_h5": "window h5, chapters 81-120",
 }
-
-NUM_COLS = {"exp_local", "ratio_local", "obs_global", "p_value",
-            "log_likelihood", "log_dice", "t_score", "mi"}
 
 def prettify_label(stem: str) -> str:
     # collocates_daiyu_window_h5 -> 黛玉 · window, horizon=5
-    m = re.match(r"collocates_(?P<target>.+)_(?P<run>.+)$", stem)
+    # collocates_daiyu_window_h5_fdr -> 黛玉 · window, horizon=5 (FDR-adjusted)
+    m = re.match(r"collocates_(?P<target>.+?)_(?P<run>window_h\d+|sentence|front80_window_h5|back40_window_h5)(?P<extra>_fdr)?$", stem)
     if not m:
         return stem
     target, run = m.group("target"), m.group("run")
     desc = PRETTY_NAMES.get(run, run)
+    if m.group("extra"):
+        desc += " · FDR corrected"
     return f"{target} · {desc}"
+
+NUM_COLS = {"exp_local", "ratio_local", "obs_global", "p_value",
+            "log_likelihood", "log_dice", "t_score", "mi"}
 
 def load_tables() -> list[dict]:
     tables = []
@@ -43,13 +48,21 @@ def load_tables() -> list[dict]:
     return tables
 
 def render_table(tab: dict) -> str:
+    df = tab["df"]
+    # move adjusted_p_value next to p_value when present
+    if "adjusted_p_value" in df.columns:
+        cols = [c for c in df.columns if c != "adjusted_p_value"]
+        cols.insert(cols.index("p_value") + 1, "adjusted_p_value")
+        df = df[cols]
+        tab = {**tab, "df": df}
+    num_cols = set(df.columns) & NUM_COLS
     rows = []
-    for _, r in tab["df"].iterrows():
+    for _, r in df.iterrows():
         cells = []
-        for col in tab["df"].columns:
+        for col in df.columns:
             v = r[col]
-            if col in NUM_COLS and pd.notna(v):
-                if col == "p_value":
+            if col in num_cols and pd.notna(v):
+                if col in ("p_value", "adjusted_p_value"):
                     # keep significant small p-values readable
                     text = f"{v:.3g}"
                 elif col in ("exp_local", "ratio_local"):
@@ -77,6 +90,15 @@ def main() -> None:
     )
     selects = "".join(render_table(t) for t in tables)
 
+    plots = sorted(glob.glob(os.path.join(OUT_DIR, "plot_*.png")))
+    gallery = ""
+    if plots:
+        figs = "".join(
+            f'<figure><img src="{os.path.basename(p)}" alt="{os.path.basename(p)}">'
+            f'<figcaption>{html.escape(os.path.basename(p).replace("plot_", "").replace(".png", ""))}</figcaption></figure>'
+            for p in plots)
+        gallery = f"<h2>Plots</h2><div class='gallery'>{figs}</div>"
+
     page = f"""<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -94,6 +116,13 @@ def main() -> None:
   th:first-child, td:first-child {{ text-align: left; }}
   thead th {{ background: #f3ede4; position: sticky; top: 0; }}
   tbody tr:nth-child(even) {{ background: #faf7f2; }}
+  h2 {{ margin-top: 2rem; font-size: 1.15rem; }}
+  .gallery {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+             gap: 1rem; }}
+  figure {{ margin: 0; border: 1px solid #ddd; padding: .5rem; background: #fff; }}
+  figure img {{ max-width: 100%; display: block; margin: 0 auto; }}
+  figcaption {{ font-size: .8rem; color: #666; margin-top: .4rem; text-align: center;
+               word-break: break-all; }}
 </style>
 </head>
 <body>
@@ -107,6 +136,7 @@ def main() -> None:
 <label for="pick">選擇設定：</label>
 <select id="pick" onchange="show(this.value)">{options}</select>
 {selects}
+{gallery}
 <script>
 function show(id) {{
   document.querySelectorAll(".table-wrap").forEach(d => d.hidden = d.id !== id);
