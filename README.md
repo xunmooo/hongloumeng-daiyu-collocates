@@ -18,7 +18,8 @@ pip install -r requirements.txt
 
 python segment.py               # opencc 繁→簡 → 分句（。！？）→ jieba 分詞 → data/sentences.txt
 python collocates.py            # find_collocates：window h5 / window h10 / sentence → output/*.csv
-python analysis_extended.py     # 擴充分析（見下）→ output/*.csv / *.png / kwic_daiyu.txt
+python analysis_extended.py     # 角色對照、前後期、FDR、KWIC、基礎圖表
+python analysis_premium.py      # 人物空間曲線、搭配詞網絡、測度比較、名稱變體檢核
 python make_report.py           # 整合所有表與圖 → output/results.html
 ```
 
@@ -33,12 +34,25 @@ Fisher 精確檢定（`alternative="greater"`），filters：`min_word_length=2`
 
 1. **多角色對照**：宝玉、宝钗 以同樣設定（window h5）各跑一次，與黛玉比較
    top-50 搭配詞的重疊與差異——檢視「人物空間」的分配差異
-2. **敘事時間切分**：前 80 回 vs 後 40 回分別分析黛玉（人物空間隨敘事推進的變化）
+2. **敘事時間切分**：前 80 回 vs 後 40 回分別分析黛玉（人物空間隨敘事推進的變化；
+   章回切分由 `chapter_split.py` 處理，含「第一零零回」等無「百」編號與
+   目錄行/交叉引用的修復）
 3. **FDR 校正**（Benjamini-Hochberg）：三種基礎設定各附一版
    `adjusted_p_value`（全部通過 0.05）
 4. **KWIC 例句**：`output/kwic_daiyu.txt`，黛玉的抽樣脈絡（±30 字）
 5. **圖表**：各設定 top15 長條圖、obs/exp 比圖、三角色重疊矩陣、前後期對照表
    （`output/plot_*.png`）
+
+**進階**（`analysis_premium.py`）：
+
+6. **人物空間曲線**：逐回計算 黛玉/宝玉/宝钗/紫鹃 詞頻佔全章詞數比例
+   （Woloch「人物空間」的直接量化）→ `character_space_by_chapter.csv` +
+   曲線圖（標注第 80 回續書分界與第 97–98 回黛玉之死）
+7. **搭配詞網絡**：以 obs_local 為邊權、全書詞頻為節點大小的力導向圖
+8. **測度比較**：同一列聯表按 logDice / t-score / obs_local 三種排序的
+   top-10 差異（`collocates_daiyu_window_h5_measures.csv`）
+9. **名稱變體檢核**：把「黛玉＋林黛玉」併為 pooled 目標重跑，
+   檢視稱謂對搭配詞側寫的影響（`collocates_daiyu_pooled_h5.csv`）
 
 ## 方法
 

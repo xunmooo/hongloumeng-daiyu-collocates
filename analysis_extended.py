@@ -58,15 +58,9 @@ baochai = run("baochai_window_h5", sentences, "宝钗", method="window", horizon
 
 # ------------------------------------------------------------------
 # B. front/back split (chapters 1-80 vs 81-120) for 黛玉
-#    re-segment with chapter awareness
+#    chapter-aware re-segmentation (see chapter_split.py)
 # ------------------------------------------------------------------
-with open("data/hongloumeng.txt", encoding="utf-8") as f:
-    raw = f.read()
-raw = opencc.OpenCC("t2s").convert(raw)
-
-chap_pat = re.compile(r"第[零一二三四五六七八九十百廿\d]+回[^\n]*")
-heads = list(chap_pat.finditer(raw))
-print(f"chapter headings: {len(heads)}")
+from chapter_split import load_chapters
 
 def seg_chunk(chunk: str) -> list[list[str]]:
     out = []
@@ -77,34 +71,10 @@ def seg_chunk(chunk: str) -> list[list[str]]:
             out.append(words)
     return out
 
-def ch2num(h: str) -> int:
-    m = re.match(r"第([零一二三四五六七八九十百廿\d]+)回", h)
-    t = m.group(1)
-    digits = {"零": 0, "一": 1, "二": 2, "三": 3, "四": 4, "五": 5,
-              "六": 6, "七": 7, "八": 8, "九": 9}
-    if t.isdigit():
-        return int(t)
-    # chinese numeral -> int (handles up to 120)
-    total, num = 0, 0
-    for ch in t:
-        if ch in digits:
-            num = digits[ch]
-        elif ch == "十":
-            total += (num or 1) * 10
-            num = 0
-        elif ch == "百":
-            total += (num or 1) * 100
-            num = 0
-        elif ch == "廿":
-            total += 20
-            num = 0
-    return total + num
-
+chapters = load_chapters()
 front, back = [], []
-for i, m in enumerate(heads):
-    end = heads[i + 1].start() if i + 1 < len(heads) else len(raw)
-    body = seg_chunk(raw[m.start():end])
-    (front if ch2num(m.group(0)) <= 80 else back).extend(body)
+for num, body in chapters.items():
+    (front if num <= 80 else back).extend(seg_chunk(body))
 print(f"front(1-80): {len(front):,} sents | back(81-120): {len(back):,} sents")
 
 daiyu_front = run("daiyu_front80_window_h5", front, "黛玉", method="window", horizon=5)
@@ -128,7 +98,10 @@ for name, kw in [("daiyu_window_h5", dict(method="window", horizon=5)),
 # ------------------------------------------------------------------
 # D. KWIC concordance of 黛玉 from the simplified raw text (sampled)
 # ------------------------------------------------------------------
+from chapter_split import load_text
+
 random.seed(42)
+raw = load_text()
 hits = [m.start() for m in re.finditer("黛玉", raw)]
 sample = random.sample(hits, min(60, len(hits)))
 lines = [f"KWIC concordance for 黛玉 (sampling {len(sample)} of {len(hits)} occurrences, ±30 chars)", "=" * 70]

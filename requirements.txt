@@ -2,3 +2,5 @@ jieba>=0.42
 qhchina>=0.2.7
 opencc>=1.4
 pandas>=2.1
+networkx>=3.0
+matplotlib>=3.7
