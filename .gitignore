@@ -1,0 +1,13 @@
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# jieba cache
+jieba.cache
+cache/
+
+# editor
+.vscode/
+.idea/
