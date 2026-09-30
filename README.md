@@ -3,6 +3,8 @@
 以 qhchina 的 `find_collocates` 考察《紅樓夢》中「黛玉」一詞的搭配詞側寫，
 作為 Woloch「人物空間」（character-space）概念的統計操作化嘗試。
 
+**成果頁（線上版）**：<https://xunmooo.github.io/hongloumeng-daiyu-collocates/output/results.html>
+
 ## 語料
 
 - **書名**：《紅樓夢》（又名《石頭記》），一百二十回本
